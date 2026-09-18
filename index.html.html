@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ishhuu Originals</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;600&family=Cinzel:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bts-purple: #8a2be2;
+            --netflix-bg: #141414;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            background-color: var(--netflix-bg);
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            overscroll-behavior-y: none;
+        }
+
+        /* Safe Screen Management */
+        .app-screen { 
+            display: none; 
+            min-height: 100vh; 
+            width: 100%; 
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+        }
+        .app-screen.active { 
+            display: flex; 
+            flex-direction: column; 
+            opacity: 1; 
+        }
+
+        /* 1. Intro Screen Animations */
+        #intro-screen {
+            position: fixed; inset: 0; background: #000; z-index: 9999;
+            align-items: center; justify-content: center;
+        }
+        .tudum-text {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 3.5rem; letter-spacing: 0.15em;
+            color: transparent; -webkit-text-stroke: 2px var(--bts-purple);
+            text-shadow: 0 0 20px rgba(138, 43, 226, 0.8);
+            opacity: 0; transform: scale(0.8);
+            animation: tudumAnim 3.5s cubic-bezier(0.1, 0.8, 0.1, 1) forwards;
+        }
+        @keyframes tudumAnim {
+            0% { opacity: 0; transform: scale(0.8); }
+            15% { opacity: 1; transform: scale(1.05); color: var(--bts-purple); -webkit-text-stroke: 0px; }
+            20% { transform: scale(1); }
+            80% { opacity: 1; transform: scale(1.02); }
+            100% { opacity: 0; transform: scale(1.1); }
+        }
+
+        /* 2. Heart Morph GPU Animation */
+        @keyframes heartMorphFly {
+            0% { transform: translate3d(0, 100vh, 0) scale(0.5) rotate(0deg); opacity: 0; }
+            15% { opacity: 1; transform: translate3d(0, 80vh, 0) scale(1) rotate(10deg); }
+            100% { transform: translate3d(0, -150vh, 0) scale(var(--end-scale)) rotate(var(--end-rotate)); opacity: 1; }
+        }
+        .flying-heart {
+            position: fixed; z-index: 8000; pointer-events: none;
+            animation: heartMorphFly var(--duration) ease-in forwards;
+            -webkit-backface-visibility: hidden; backface-visibility: hidden; 
+            transform: translateZ(0); will-change: transform, opacity;
+        }
+
+        /* Custom UI Elements */
+        .hero-vignette {
+            background: linear-gradient(to top, var(--netflix-bg) 0%, transparent 50%),
+                        linear-gradient(to right, rgba(20,20,20,0.9) 0%, transparent 60%);
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+        
+        /* Walkthrough Overlay */
+        #walkthrough-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            z-index: 50; display: none; flex-direction: column; justify-content: flex-end;
+            pointer-events: auto;
+        }
+        .walkthrough-highlight {
+            position: relative !important; z-index: 60 !important; pointer-events: auto !important;
+            box-shadow: 0 0 0 4px rgba(138,43,226,0.8), 0 0 30px rgba(138,43,226,0.6) !important;
+            border-radius: 0.5rem; animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(138,43,226,0.8), 0 0 30px rgba(138,43,226,0.6); }
+            50% { box-shadow: 0 0 0 6px rgba(255,105,180,0.9), 0 0 50px rgba(255,105,180,0.8); }
+        }
+
+        /* Media Modal Animations */
+        @keyframes kenBurns {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.15); }
+        }
+        .photo-zoom { animation: kenBurns 5s linear forwards; will-change: transform; }
+
+        /* Final Screen Fold */
+        .fold-away {
+            transform-origin: top;
+            transform: perspective(1200px) rotateX(90deg);
+            opacity: 0 !important;
+            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 1s ease-in;
+            pointer-events: none;
+        }
+        
+        #particle-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. INTRO TUDUM -->
+    <div id="intro-screen" class="app-screen" style="display: flex; opacity: 1;">
+        <h1 class="tudum-text text-center px-4">ISHHUU<br><span class="text-2xl md:text-5xl tracking-widest text-white">ORIGINALS</span></h1>
+    </div>
+
+    <!-- 2. COUNTDOWN SCREEN (Lock) -->
+    <div id="lock-screen" class="app-screen relative items-center justify-center bg-black px-6 text-center">
+        <canvas id="particle-canvas"></canvas>
+        <div class="relative z-10">
+            <h1 class="font-['Cinzel'] text-2xl md:text-4xl text-purple-400 mb-8 drop-shadow-lg">Ishhuu's 17th Birthday</h1>
+            <div class="flex gap-4 md:gap-6 justify-center font-mono text-3xl md:text-5xl font-bold mb-12">
+                <div class="flex flex-col items-center"><span id="days">00</span><span class="text-xs text-gray-400 mt-2 font-sans tracking-widest">DAYS</span></div>
+                <div class="text-purple-600">:</div>
+                <div class="flex flex-col items-center"><span id="hours">00</span><span class="text-xs text-gray-400 mt-2 font-sans tracking-widest">HOURS</span></div>
+                <div class="text-purple-600">:</div>
+                <div class="flex flex-col items-center"><span id="minutes">00</span><span class="text-xs text-gray-400 mt-2 font-sans tracking-widest">MINS</span></div>
+                <div class="text-purple-600">:</div>
+                <div class="flex flex-col items-center"><span id="seconds">00</span><span class="text-xs text-gray-400 mt-2 font-sans tracking-widest">SECS</span></div>
+            </div>
+        </div>
+        <button onclick="safeOpenDevModal()" class="absolute bottom-10 text-xs text-gray-600 hover:text-purple-400 transition-colors z-20">Dev: Force Unlock</button>
+    </div>
+
+    <!-- DEV PASSWORD MODAL -->
+    <div id="dev-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/80 backdrop-blur-sm opacity-0 transition-opacity">
+        <div class="bg-gray-900 border border-purple-500/50 p-6 rounded-xl w-80 text-center shadow-[0_0_20px_rgba(138,43,226,0.3)]">
+            <h3 class="text-white mb-4 font-semibold">Developer Override</h3>
+            <input type="password" id="dev-password" placeholder="Enter Password" class="w-full bg-black border border-gray-700 rounded p-2 text-white mb-2 focus:outline-none focus:border-purple-500 text-center">
+            <p id="dev-error" class="text-red-500 text-xs h-4 mb-4"></p>
+            <div class="flex gap-3">
+                <button onclick="safeCloseDevModal()" class="flex-1 bg-gray-800 text-white py-2 rounded">Cancel</button>
+                <button onclick="checkDevPassword()" class="flex-1 bg-purple-600 text-white py-2 rounded font-bold">Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. INTERMEDIATE MESSAGE -->
+    <div id="intro-message-screen" class="app-screen relative items-center justify-center bg-gradient-to-br from-[#1a0b2e] via-black to-[#2d112b] overflow-hidden p-6 md:p-12">
+        <div class="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center justify-center gap-8 text-center">
+            <h1 class="font-['Cinzel'] text-4xl md:text-6xl font-bold mb-2 text-pink-400 drop-shadow-[0_0_15px_rgba(255,105,180,0.5)] leading-tight">
+                Happy birthday<br>majhi kaju katlii 💖
+            </h1>
+            <p class="text-gray-200 text-base md:text-xl font-light mb-4 leading-relaxed max-w-lg mx-auto">
+                This is our show of us which is so special for me. I loved making it, and it's my absolute favorite one.
+            </p>
+            <div class="w-48 h-64 relative mb-6">
+                <img src="assets/images/v-sticker.png" alt="V Love Sign" class="w-full h-full object-contain filter brightness-110" onerror="this.src='https://placehold.co/200x300/2d112b/fff?text=V+Sticker'">
+            </div>
+            <button onclick="startAdventures()" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white py-4 px-8 rounded-full font-bold text-lg transition-all shadow-[0_0_25px_rgba(255,105,180,0.6)] active:scale-95 relative z-[100]">
+                Start the adventures with Mr Adiii <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 4. MAIN NETFLIX UI & WALKTHROUGH -->
+    <div id="main-screen" class="app-screen pb-32">
+        
+        <div id="walkthrough-overlay">
+            <div class="w-full bg-[#1a0b2e] border-t-2 border-purple-500 p-5 text-center shadow-[0_-10px_40px_rgba(138,43,226,0.5)]">
+                <p id="walkthrough-instruction" class="text-white font-medium text-base tracking-wide">Welcome...</p>
+            </div>
+        </div>
+
+        <nav class="fixed top-0 w-full z-40 bg-gradient-to-b from-black/90 to-transparent p-4 flex justify-between items-center pointer-events-none">
+            <div class="text-purple-500 font-['Bebas_Neue'] text-3xl font-bold">ISHHUU</div>
+            <i class="fa-solid fa-heart text-white"></i>
+        </nav>
+
+        <div class="relative w-full h-[75vh] md:h-[85vh] step-container">
+            <img src="assets/images/hero-bg.jpg" class="absolute inset-0 w-full h-full object-cover opacity-60" onerror="this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=3793&auto=format&fit=crop'">
+            <div class="absolute inset-0 hero-vignette"></div>
+            <div class="absolute bottom-[8%] left-4 right-4 max-w-2xl flex flex-col justify-end pointer-events-none">
+                <h2 class="font-['Cinzel'] text-4xl md:text-7xl font-bold mb-2 text-white leading-none">
+                    ISHHUU:<br><span class="text-purple-400 text-3xl md:text-6xl">SEASON 17</span>
+                </h2>
+                <p class="text-white/90 mb-5 text-sm md:text-lg pr-4">Starring: Ishhuu & Aditya. The story of two people finding their own universe in each other.</p>
+                <div class="flex pointer-events-auto">
+                    <button id="step-1" onclick="handleInteraction(1)" class="bg-white text-black py-3 px-6 rounded flex items-center justify-center gap-2 font-bold transition">
+                        <i class="fa-solid fa-play"></i> Play Our Story <span>🫰</span> 
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-4 py-6 relative z-10 step-container bg-gradient-to-b from-transparent to-[#141414]">
+            <h3 class="text-lg font-semibold mb-3 text-gray-100">Season 1: Highlights</h3>
+            <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-4 pt-2 scroll-smooth">
+                <div onclick="if(el('walkthrough-overlay') && el('walkthrough-overlay').style.display==='none') safeOpenMediaModal('photo', 'ep1');" class="min-w-[75vw] bg-[#1a1a1a] rounded-lg overflow-hidden cursor-pointer shadow-lg flex-shrink-0">
+                    <img src="assets/images/ep1.jpg" class="w-full h-40 object-cover" onerror="this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=400'">
+                    <div class="p-3"><h4 class="font-bold text-sm text-gray-200">1. Where We Began</h4></div>
+                </div>
+                <div id="step-2" onclick="handleInteraction(2)" class="min-w-[75vw] bg-[#1a1a1a] rounded-lg overflow-hidden cursor-pointer shadow-lg flex-shrink-0">
+                    <img src="assets/images/ep2.jpg" class="w-full h-40 object-cover" onerror="this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=400'">
+                    <div class="p-3"><h4 class="font-bold text-sm text-gray-200">2. The First Spark</h4></div>
+                </div>
+                <div id="step-3" onclick="handleInteraction(3)" class="min-w-[75vw] bg-[#1a1a1a] rounded-lg overflow-hidden cursor-pointer shadow-lg flex-shrink-0">
+                    <img src="assets/images/ep3.jpg" class="w-full h-40 object-cover" onerror="this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=400'">
+                    <div class="p-3"><h4 class="font-bold text-sm text-gray-200">3. Our Favourites</h4></div>
+                </div>
+                <div id="step-4" onclick="handleInteraction(4)" class="min-w-[75vw] bg-[#1a1a1a] rounded-lg overflow-hidden cursor-pointer shadow-lg flex-shrink-0">
+                    <img src="assets/images/ep4.jpg" class="w-full h-40 object-cover" onerror="this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=400'">
+                    <div class="p-3"><h4 class="font-bold text-sm text-gray-200">4. Growing Closer</h4></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-4 py-6 bg-[#141414] step-container">
+            <h3 class="text-lg font-semibold mb-1 text-purple-300 font-['Cinzel']">The Dream Cut</h3>
+            <p class="text-xs text-gray-400 mb-4">Kdrama scenes we are going to recreate...</p>
+            <div class="grid grid-cols-2 gap-4">
+                <div id="step-5" onclick="handleInteraction(5)" class="relative overflow-hidden rounded-xl border border-purple-900/40 cursor-pointer">
+                    <img src="assets/images/dream1.jpg" class="w-full h-32 object-cover" onerror="this.src='https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=800'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent flex flex-col justify-end p-2">
+                        <h4 class="font-bold text-white text-xs"><i class="fa-solid fa-clapperboard text-purple-400 mr-1"></i>Dream 1</h4>
+                    </div>
+                </div>
+                <div id="step-6" onclick="handleInteraction(6)" class="relative overflow-hidden rounded-xl border border-purple-900/40 cursor-pointer">
+                    <img src="assets/images/dream2.jpg" class="w-full h-32 object-cover" onerror="this.src='https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?w=800'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent flex flex-col justify-end p-2">
+                        <h4 class="font-bold text-white text-xs"><i class="fa-solid fa-clapperboard text-purple-400 mr-1"></i>Dream 2</h4>
+                    </div>
+                </div>
+                <div id="step-7" onclick="handleInteraction(7)" class="relative overflow-hidden rounded-xl border border-purple-900/40 cursor-pointer">
+                    <img src="assets/images/dream3.jpg" class="w-full h-32 object-cover" onerror="this.src='https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=800'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent flex flex-col justify-end p-2">
+                        <h4 class="font-bold text-white text-xs"><i class="fa-solid fa-clapperboard text-purple-400 mr-1"></i>Dream 3</h4>
+                    </div>
+                </div>
+                <div id="step-8" onclick="handleInteraction(8)" class="relative overflow-hidden rounded-xl border border-purple-900/40 cursor-pointer">
+                    <img src="assets/images/dream4.jpg" class="w-full h-32 object-cover" onerror="this.src='https://images.unsplash.com/photo-1510414842594-a61c69b5ae57?w=800'">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent flex flex-col justify-end p-2">
+                        <h4 class="font-bold text-white text-xs"><i class="fa-solid fa-clapperboard text-purple-400 mr-1"></i>Dream 4</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-4 py-6 bg-[#141414] step-container">
+            <h3 class="text-xl font-semibold mb-1 font-['Bebas_Neue'] tracking-wide text-gray-200">Season 2 Teasers</h3>
+            <p class="text-xs text-gray-400 mb-4">Our Future Bucket List</p>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between p-3 bg-gray-900/80 border border-gray-800 rounded-xl">
+                    <div class="flex items-center gap-3"><div class="bg-purple-900/40 px-2 py-1 rounded text-purple-300 font-bold font-['Cinzel'] text-xs">EP 5</div><span class="text-gray-300 text-sm font-medium">Birthday date</span></div>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-900/80 border border-gray-800 rounded-xl">
+                    <div class="flex items-center gap-3"><div class="bg-purple-900/40 px-2 py-1 rounded text-purple-300 font-bold font-['Cinzel'] text-xs">EP 6</div><span class="text-gray-300 text-sm font-medium">Adventurous trip</span></div>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-900/80 border border-gray-800 rounded-xl">
+                    <div class="flex items-center gap-3"><div class="bg-purple-900/40 px-2 py-1 rounded text-purple-300 font-bold font-['Cinzel'] text-xs">EP 7</div><span class="text-gray-300 text-sm font-medium">Marriage proposal</span></div>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-900/80 border border-gray-800 rounded-xl">
+                    <div class="flex items-center gap-3"><div class="bg-purple-900/40 px-2 py-1 rounded text-purple-300 font-bold font-['Cinzel'] text-xs">EP 8</div><span class="text-gray-300 text-sm font-medium">Marriage</span></div>
+                </div>
+                <div id="step-9" onclick="handleInteraction(9)" class="flex items-center justify-between p-3 bg-gray-900/80 border border-gray-800 rounded-xl cursor-pointer">
+                    <div class="flex items-center gap-3"><div class="bg-purple-900/40 px-2 py-1 rounded text-purple-300 font-bold font-['Cinzel'] text-xs">EP 9</div><span class="text-gray-300 text-sm font-medium">Our Family</span></div>
+                    <div class="p-2 rounded-full bg-black/50"><i class="fa-solid fa-heart text-gray-500 text-xl" id="teaser-heart-icon-1"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 bg-[#0a0510] relative p-6 border-t border-purple-900/40 step-container">
+            <div id="step-10" class="relative w-full max-w-2xl mx-auto bg-black p-6 rounded-2xl border border-purple-800/30">
+                <h3 class="font-['Cinzel'] text-xl text-purple-300 mb-6 text-center border-b border-purple-800/50 pb-3">Director's Cut</h3>
+                <p class="text-gray-300 text-sm leading-relaxed font-light text-center">
+                    Happy Birthday, my ishhuu. I cant express mi kiti happy aahe just because you are in my life. 19th sept is very special day for mee karan hya divshi majhya jeeva cha janm zhalaa. I am always manifesting for our future and wishing for our boths success. I wish you a happy birthday once again and Thank youuuuu sooooo much for coming into my life.
+                    <br><br>I loveee youuu soooooo muchhh majhi kaju katli
+                </p>
+                <div class="mt-8 text-center"><p class="text-white font-bold text-sm">--Adiiiiii</p></div>
+            </div>
+            
+            <div id="secret-love-btn-container" class="mt-12 text-center hidden opacity-0 transition-opacity duration-1000 pb-20">
+                <button onclick="triggerCallSequence()" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-10 rounded-full shadow-[0_0_30px_rgba(138,43,226,0.6)] animate-pulse relative z-[70]">
+                    I love youuu 💜
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS SECTION -->
+    
+    <!-- PHOTO MODAL (Episodes) -->
+    <div id="photo-modal" class="fixed inset-0 z-[100] hidden flex-col bg-black opacity-0 transition-opacity duration-500 overflow-hidden">
+        <button onclick="safeCloseMedia('photo')" class="absolute top-6 right-6 p-4 text-white/80 text-3xl z-[110]"><i class="fa-solid fa-xmark"></i></button>
+        <div class="relative flex-1 flex flex-col items-center justify-center bg-black w-full h-full">
+            <img id="episode-photo" src="" class="w-full h-full object-cover opacity-80" alt="Memory" onerror="this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=1200'">
+            <div class="absolute bottom-10 left-6 right-6 text-center z-10 p-4 bg-gradient-to-t from-black/80 to-transparent rounded-xl">
+                <h2 id="photo-title" class="text-2xl font-['Cinzel'] text-purple-400 font-bold mb-2">Our Memory</h2>
+                <p class="text-gray-200 text-sm italic">Every moment with you is perfectly captured...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIDEO MODAL (Dream Cuts) -->
+    <div id="video-modal" class="fixed inset-0 z-[100] hidden flex-col bg-black opacity-0 transition-opacity duration-500">
+        <button onclick="safeCloseMedia('video')" class="absolute top-6 right-6 p-4 text-white/80 text-3xl z-[110]"><i class="fa-solid fa-xmark"></i></button>
+        <div class="relative flex-1 flex items-center justify-center bg-black w-full h-full">
+            <video id="kdrama-player" class="w-full max-h-screen object-contain" playsinline onerror="this.src='https://cdn.pixabay.com/video/2021/08/04/83863-584705359_tiny.mp4'; this.play();">
+                <source id="video-source" src="" type="video/mp4">
+            </video>
+        </div>
+    </div>
+
+    <!-- INCOMING CALL MODAL -->
+    <div id="incoming-call-modal" class="fixed inset-0 z-[200] hidden flex-col justify-between opacity-0 transition-opacity duration-300 overflow-hidden bg-black">
+        <div class="absolute inset-0 bg-cover bg-center opacity-30" style="background-image: url('assets/images/call-bg.jpg');"></div>
+        <div class="relative z-10 flex flex-col items-center pt-24 px-6 text-center">
+            <div class="w-28 h-28 rounded-full overflow-hidden mb-4 bg-purple-900 flex items-center justify-center border-2 border-white/20">
+                <img src="assets/images/caller-id.jpg" alt="A" class="w-full h-full object-cover" onerror="this.style.display='none'; document.getElementById('caller-fallback').style.display='block';">
+                <span id="caller-fallback" style="display:none;" class="text-4xl font-bold text-white">A</span>
+            </div>
+            <h2 class="text-3xl font-light text-white mb-2">Mr Adiii 💜</h2>
+            <p id="call-status" class="text-base text-gray-300 font-light">Incoming call...</p>
+        </div>
+        <div class="relative z-10 pb-20 px-12 w-full max-w-md mx-auto">
+            <div id="call-controls-ringing" class="flex justify-between items-center w-full px-4">
+                <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="handleCall(false)">
+                    <div class="w-16 h-16 rounded-full bg-[#ff3b30] flex items-center justify-center"><i class="fa-solid fa-phone-slash text-white text-2xl"></i></div>
+                </div>
+                <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="handleCall(true)">
+                    <div class="w-16 h-16 rounded-full bg-[#34c759] flex items-center justify-center animate-bounce"><i class="fa-solid fa-phone text-white text-2xl"></i></div>
+                </div>
+            </div>
+            <div id="call-controls-active" class="hidden flex-col items-center justify-center w-full">
+                <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="endCallManually()">
+                    <div class="w-16 h-16 rounded-full bg-[#ff3b30] flex items-center justify-center"><i class="fa-solid fa-phone-slash text-white text-2xl"></i></div>
+                </div>
+            </div>
+        </div>
+        <audio id="call-audio">
+            <source src="assets/audio/voice-note.mp3" type="audio/mpeg" onerror="this.src='https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3';">
+        </audio>
+    </div>
+
+    <!-- FINAL SCREEN -->
+    <div id="final-screen" class="app-screen fixed inset-0 z-[300] bg-[#05010a] items-center justify-center overflow-hidden flex-col">
+        <div class="relative z-10 text-center px-6 text-white w-full max-w-2xl mx-auto">
+            <i class="fa-solid fa-infinity text-pink-500 text-5xl mb-8 animate-pulse"></i>
+            <h1 class="font-['Cinzel'] text-3xl md:text-5xl font-bold mb-6 text-white">Happy 17th Birthday, Ishhuu.</h1>
+            <p class="text-gray-200 text-lg mb-8">Thank you for being the best part of my life.<br>The best is yet to come.</p>
+            <button onclick="viewAgain()" class="mt-4 bg-white/10 border border-purple-500/50 text-white py-3 px-8 rounded-full font-bold">View Again</button>
+        </div>
+    </div>
+
+    <script>
+        // ---------------- UTILITY & NULL CHECKS ----------------
+        function el(id) { return document.getElementById(id); }
+        
+        function switchScreen(targetId) {
+            try {
+                // Safely hide all screens first
+                ['intro-screen', 'lock-screen', 'intro-message-screen', 'main-screen', 'final-screen'].forEach(id => {
+                    const scr = el(id);
+                    if (scr) {
+                        scr.style.opacity = '0';
+                        setTimeout(() => { scr.style.display = 'none'; scr.classList.remove('active'); }, 800);
+                    }
+                });
+                // Safely show target
+                setTimeout(() => {
+                    const target = el(targetId);
+                    if (target) {
+                        target.style.display = 'flex';
+                        setTimeout(() => { target.style.opacity = '1'; target.classList.add('active'); }, 50);
+                    }
+                }, 850);
+            } catch (e) { console.error("Error switching screens:", e); }
+        }
+
+        // ---------------- BOOT LOGIC ----------------
+        window.onload = () => {
+            try {
+                initParticles();
+                setTimeout(() => {
+                    const intro = el('intro-screen');
+                    if (intro) intro.style.opacity = '0';
+                    setTimeout(() => { checkInitialRoute(); }, 1000);
+                }, 3000);
+            } catch (e) { console.error("Boot error:", e); }
+        };
+
+        const targetDate = new Date("2026-09-19T00:00:00").getTime();
+        let countdownTimer = null;
+
+        function checkInitialRoute() {
+            try {
+                const now = new Date().getTime();
+                if (now >= targetDate) {
+                    switchScreen('intro-message-screen');
+                } else {
+                    switchScreen('lock-screen');
+                    updateTimerUI(); // run once immediately
+                    countdownTimer = setInterval(updateTimerUI, 1000);
+                }
+            } catch (e) { console.error("Routing error:", e); }
+        }
+
+        function updateTimerUI() {
+            try {
+                const now = new Date().getTime();
+                const dist = targetDate - now;
+                if (dist < 0) {
+                    if (countdownTimer) clearInterval(countdownTimer);
+                    unlockWebsite();
+                    return;
+                }
+                const d = Math.floor(dist / (1000 * 60 * 60 * 24));
+                const h = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((dist % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((dist % (1000 * 60)) / 1000);
+
+                if(el('days')) el('days').innerText = d.toString().padStart(2, '0');
+                if(el('hours')) el('hours').innerText = h.toString().padStart(2, '0');
+                if(el('minutes')) el('minutes').innerText = m.toString().padStart(2, '0');
+                if(el('seconds')) el('seconds').innerText = s.toString().padStart(2, '0');
+            } catch (e) { console.error("Timer update error:", e); }
+        }
+
+        // ---------------- DEV MODAL ----------------
+        function safeOpenDevModal() {
+            const m = el('dev-modal');
+            if(m) { m.classList.remove('hidden'); m.classList.add('flex'); setTimeout(()=>m.classList.remove('opacity-0'), 10); }
+        }
+        function safeCloseDevModal() {
+            const m = el('dev-modal');
+            if(m) {
+                m.classList.add('opacity-0');
+                setTimeout(() => { m.classList.remove('flex'); m.classList.add('hidden'); if(el('dev-error')) el('dev-error').innerText=''; }, 300);
+            }
+        }
+        function checkDevPassword() {
+            const pwd = el('dev-password');
+            if(pwd && pwd.value === 'Adiish@0419') {
+                safeCloseDevModal();
+                if (countdownTimer) clearInterval(countdownTimer);
+                unlockWebsite();
+            } else if(el('dev-error')) {
+                el('dev-error').innerText = 'Incorrect code.';
+            }
+        }
+
+        // ---------------- MORPH ANIMATION ----------------
+        function unlockWebsite() { switchScreen('intro-message-screen'); }
+
+        function startAdventures() {
+            try {
+                const c = document.createElement('div');
+                c.className = 'fixed inset-0 pointer-events-none z-[8000] overflow-hidden';
+                document.body.appendChild(c);
+
+                for (let i = 0; i < 45; i++) {
+                    const h = document.createElement('i');
+                    h.className = 'fa-solid fa-heart flying-heart drop-shadow-xl';
+                    h.style.left = `${Math.random() * 100}vw`;
+                    h.style.fontSize = `${Math.random() * 4 + 3}rem`;
+                    h.style.setProperty('--duration', `${Math.random() * 2.5 + 5.0}s`); // 5-7.5s
+                    h.style.setProperty('--end-scale', '5');
+                    h.style.setProperty('--end-rotate', `${(Math.random()-0.5)*60}deg`);
+                    h.style.animationDelay = `${Math.random() * 1.5}s`;
+                    h.style.color = Math.random() > 0.5 ? '#ff69b4' : '#8a2be2';
+                    c.appendChild(h);
+                }
+
+                setTimeout(() => { switchScreen('main-screen'); }, 6000);
+                setTimeout(() => { c.remove(); initWalkthrough(); }, 9000);
+            } catch (e) { console.error("Heart morph error:", e); switchScreen('main-screen'); }
+        }
+
+        // ---------------- WALKTHROUGH ----------------
+        let currentStep = 1;
+        const steps = {
+            1: { msg: "Let's begin the journey. Tap 'Play Our Story'. 🎬", id: "step-1", type: "photo", mediaId: "ep1", title: "Where We Began" },
+            2: { msg: "Episode 2: The First Spark. ✨", id: "step-2", type: "photo", mediaId: "ep2", title: "The First Spark" },
+            3: { msg: "Episode 3: Our Favourites. 🎶", id: "step-3", type: "photo", mediaId: "ep3", title: "Our Favourites" },
+            4: { msg: "Episode 4: Growing Closer. 🌊", id: "step-4", type: "photo", mediaId: "ep4", title: "Growing Closer" },
+            5: { msg: "Our Dream Scene #1. ☂️", id: "step-5", type: "video", mediaId: "dream1" },
+            6: { msg: "Our Dream Scene #2. 🏖️", id: "step-6", type: "video", mediaId: "dream2" },
+            7: { msg: "Our Dream Scene #3. ✨", id: "step-7", type: "video", mediaId: "dream3" },
+            8: { msg: "Our Dream Scene #4. 🎬", id: "step-8", type: "video", mediaId: "dream4" },
+            9: { msg: "Vote for our future date by tapping the heart! 💖", id: "step-9", type: "heart" },
+            10: { msg: "A letter from me to you. Read carefully... 💌", id: "step-10", type: "letter" }
+        };
+
+        function initWalkthrough() {
+            const overlay = el('walkthrough-overlay');
+            if (overlay) { overlay.style.display = 'flex'; activateStep(1); }
+        }
+
+        function activateStep(stepNum) {
+            try {
+                document.querySelectorAll('.walkthrough-highlight').forEach(e => e.classList.remove('walkthrough-highlight'));
+                document.querySelectorAll('.step-container').forEach(e => e.style.zIndex = '');
+                
+                if (!steps[stepNum]) {
+                    if (el('walkthrough-overlay')) el('walkthrough-overlay').style.display = 'none';
+                    return;
+                }
+                currentStep = stepNum;
+                const sd = steps[stepNum];
+                if (el('walkthrough-instruction')) el('walkthrough-instruction').innerText = sd.msg;
+                
+                const target = el(sd.id);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => {
+                        target.classList.add('walkthrough-highlight');
+                        const container = target.closest('.step-container');
+                        if (container) { container.style.position = 'relative'; container.style.zIndex = '60'; }
+                    }, 400);
+                }
+
+                if (sd.type === 'letter') {
+                    setTimeout(() => {
+                        const btn = el('secret-love-btn-container');
+                        if (btn) {
+                            btn.classList.remove('hidden');
+                            setTimeout(() => { btn.classList.remove('opacity-0'); btn.scrollIntoView({ behavior: 'smooth' }); }, 50);
+                        }
+                    }, 10000);
+                }
+            } catch (e) { console.error("Walkthrough error:", e); }
+        }
+
+        function handleInteraction(stepClicked) {
+            try {
+                const overlay = el('walkthrough-overlay');
+                const isFreeRoam = !overlay || overlay.style.display === 'none';
+                
+                if (isFreeRoam) {
+                    if (steps[stepClicked] && (steps[stepClicked].type === 'photo' || steps[stepClicked].type === 'video')) {
+                        safeOpenMediaModal(steps[stepClicked].type, steps[stepClicked].mediaId, steps[stepClicked].title);
+                    }
+                    return;
+                }
+
+                if (stepClicked !== currentStep) return; 
+                const sd = steps[stepClicked];
+                
+                if (sd.type === 'photo' || sd.type === 'video') safeOpenMediaModal(sd.type, sd.mediaId, sd.title, true);
+                if (sd.type === 'heart') {
+                    const icon = el('teaser-heart-icon-1');
+                    if (icon) icon.classList.replace('text-gray-500', 'text-pink-500');
+                    setTimeout(() => activateStep(currentStep + 1), 600);
+                }
+            } catch (e) { console.error("Interaction error:", e); }
+        }
+
+        // ---------------- MEDIA MODALS ----------------
+        let advanceOnClose = false;
+        let photoTimer = null;
+
+        function safeOpenMediaModal(type, mediaId, title = "Our Memory", advanceTutorial = false) {
+            try {
+                advanceOnClose = advanceTutorial;
+                if (type === 'photo') {
+                    const pModal = el('photo-modal');
+                    const pImg = el('episode-photo');
+                    if (pModal && pImg) {
+                        pImg.src = `assets/videos/${mediaId}.jpg`;
+                        pImg.classList.remove('photo-zoom');
+                        if (el('photo-title')) el('photo-title').innerText = title;
+                        pModal.classList.remove('hidden'); pModal.classList.add('flex');
+                        void pImg.offsetWidth;
+                        pImg.classList.add('photo-zoom');
+                        setTimeout(() => pModal.classList.remove('opacity-0'), 50);
+                        
+                        if (photoTimer) clearTimeout(photoTimer);
+                        photoTimer = setTimeout(() => safeCloseMedia('photo'), 5000);
+                    }
+                } else if (type === 'video') {
+                    const vModal = el('video-modal');
+                    const vSrc = el('video-source');
+                    const vPlayer = el('kdrama-player');
+                    if (vModal && vSrc && vPlayer) {
+                        vSrc.src = `assets/videos/${mediaId}.mp4`;
+                        vPlayer.load();
+                        vModal.classList.remove('hidden'); vModal.classList.add('flex');
+                        setTimeout(() => vModal.classList.remove('opacity-0'), 50);
+                        vPlayer.play().catch(e => console.log("Autoplay blocked."));
+                        vPlayer.onended = () => safeCloseMedia('video');
+                    }
+                }
+            } catch (e) { console.error("Modal open error:", e); }
+        }
+
+        function safeCloseMedia(type) {
+            try {
+                if (type === 'photo' && photoTimer) { clearTimeout(photoTimer); photoTimer = null; }
+                const modal = el(type === 'photo' ? 'photo-modal' : 'video-modal');
+                if (modal) {
+                    modal.classList.add('opacity-0');
+                    if (type === 'video' && el('kdrama-player')) el('kdrama-player').pause();
+                    setTimeout(() => {
+                        modal.classList.remove('flex'); modal.classList.add('hidden');
+                        if (type === 'photo' && el('episode-photo')) el('episode-photo').classList.remove('photo-zoom');
+                        if (advanceOnClose) { advanceOnClose = false; activateStep(currentStep + 1); }
+                    }, 500);
+                }
+            } catch (e) { console.error("Modal close error:", e); }
+        }
+
+        // ---------------- CALL MODAL ----------------
+        let callInt = null; let callSecs = 0;
+        
+        function triggerCallSequence() {
+            try {
+                if(el('walkthrough-overlay')) el('walkthrough-overlay').style.display = 'none';
+                document.querySelectorAll('.walkthrough-highlight').forEach(e => e.classList.remove('walkthrough-highlight'));
+                const cm = el('incoming-call-modal');
+                if (cm) { cm.classList.remove('hidden'); cm.classList.add('flex'); setTimeout(() => cm.classList.remove('opacity-0'), 50); }
+            } catch (e) { console.error("Call trigger error:", e); }
+        }
+
+        function handleCall(accepted) {
+            try {
+                const stat = el('call-status');
+                if (!accepted) {
+                    if (stat) stat.innerText = "Call Ended";
+                    setTimeout(() => { switchScreen('final-screen'); if(el('incoming-call-modal')) el('incoming-call-modal').style.display='none'; }, 800);
+                    return;
+                }
+                if (el('call-controls-ringing')) el('call-controls-ringing').classList.replace('flex', 'hidden');
+                if (el('call-controls-active')) el('call-controls-active').classList.replace('hidden', 'flex');
+                
+                callSecs = 0;
+                callInt = setInterval(() => {
+                    if (stat) stat.innerText = `${Math.floor(callSecs / 60).toString().padStart(2, '0')}:${(callSecs % 60).toString().padStart(2, '0')}`;
+                    callSecs++;
+                }, 1000);
+                
+                const aud = el('call-audio');
+                if (aud) {
+                    aud.currentTime = 0; aud.play().catch(e=>{});
+                    aud.onended = () => endCallManually();
+                }
+            } catch (e) { console.error("Handle call error:", e); }
+        }
+
+        function endCallManually() {
+            try {
+                if (callInt) clearInterval(callInt);
+                if (el('call-audio')) el('call-audio').pause();
+                if (el('call-status')) el('call-status').innerText = "Call Ended";
+                setTimeout(() => { switchScreen('final-screen'); if(el('incoming-call-modal')) el('incoming-call-modal').style.display='none'; }, 800);
+            } catch (e) { console.error("End call error:", e); }
+        }
+
+        // ---------------- VIEW AGAIN ANIMATION ----------------
+        function viewAgain() {
+            try {
+                const fs = el('final-screen');
+                if (fs) {
+                    fs.classList.add('fold-away');
+                    setTimeout(() => {
+                        fs.style.display = 'none';
+                        fs.classList.remove('active', 'fold-away');
+                        const ms = el('main-screen');
+                        if (ms) { ms.style.display = 'flex'; setTimeout(() => ms.style.opacity = '1', 50); }
+                        window.scrollTo(0, 0);
+                    }, 1200);
+                }
+            } catch (e) { console.error("View again error:", e); }
+        }
+        
+        // Minor particle logic for lock screen bg
+        let particleRunning = true;
+        function initParticles() {
+            try {
+                const cvs = el('particle-canvas');
+                if(!cvs) return;
+                const ctx = cvs.getContext('2d');
+                let p = [];
+                cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+                for (let i = 0; i < 40; i++) p.push({ x: Math.random() * cvs.width, y: Math.random() * cvs.height, s: Math.random() * 2, sx: Math.random() * 0.4 - 0.2, sy: Math.random() * 0.4 - 0.2 });
+                function anim() {
+                    if(!particleRunning) return;
+                    ctx.clearRect(0,0, cvs.width, cvs.height);
+                    p.forEach(i => {
+                        i.x += i.sx; i.y += i.sy;
+                        if(i.x > cvs.width) i.x=0; else if(i.x < 0) i.x=cvs.width;
+                        if(i.y > cvs.height) i.y=0; else if(i.y < 0) i.y=cvs.height;
+                        ctx.fillStyle = 'rgba(138,43,226,0.5)'; ctx.beginPath(); ctx.arc(i.x, i.y, i.s, 0, Math.PI*2); ctx.fill();
+                    });
+                    requestAnimationFrame(anim);
+                }
+                anim();
+            } catch (e) { console.log(e); }
+        }
+    </script>
+</body>
+</html>
