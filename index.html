@@ -20,6 +20,7 @@
             background-color: #050505;
             color: #ffffff;
             font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Controlled by app-wrapper */
         }
 
         /* Scrollbar for container */
@@ -53,6 +54,7 @@
             text-shadow: 0 0 20px rgba(138, 43, 226, 0.8);
             opacity: 0; transform: scale(0.8);
             animation: tudumAnim 3.5s cubic-bezier(0.1, 0.8, 0.1, 1) forwards;
+            will-change: transform, opacity;
         }
         @keyframes tudumAnim {
             0% { opacity: 0; transform: scale(0.8); }
@@ -62,7 +64,7 @@
             100% { opacity: 0; transform: scale(1.1); }
         }
 
-        /* 2. Heart Morph GPU Animation */
+        /* 2. Heart Morph GPU Animation (Optimized) */
         @keyframes heartMorphFly {
             0% { transform: translate3d(0, 100vh, 0) scale(0.5) rotate(0deg); opacity: 0; }
             15% { opacity: 1; transform: translate3d(0, 80vh, 0) scale(1) rotate(10deg); }
@@ -89,30 +91,33 @@
             z-index: 50; display: none; flex-direction: column; justify-content: flex-end;
             pointer-events: auto;
         }
+        
+        /* Highly Optimized Highlight Animation (Replaced laggy box-shadow) */
         .walkthrough-highlight {
             position: relative !important; z-index: 60 !important; pointer-events: auto !important;
-            box-shadow: 0 0 0 4px rgba(138,43,226,0.8), 0 0 30px rgba(138,43,226,0.6) !important;
-            border-radius: 0.5rem; animation: pulse-glow 2s infinite;
+            border-radius: 0.5rem; 
+            animation: pulse-scale 2s infinite ease-in-out;
+            will-change: transform;
+            box-shadow: 0 0 20px rgba(138,43,226,0.7) !important;
         }
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 0 4px rgba(138,43,226,0.8), 0 0 30px rgba(138,43,226,0.6); }
-            50% { box-shadow: 0 0 0 6px rgba(255,105,180,0.9), 0 0 50px rgba(255,105,180,0.8); }
+        @keyframes pulse-scale {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(138,43,226,0.7) !important; }
+            50% { transform: scale(1.03); box-shadow: 0 0 30px rgba(255,105,180,0.8) !important; }
         }
 
-        /* Media Modal Animations */
-        @keyframes kenBurns {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.15); }
+        /* Fixed Modals CSS */
+        .fixed-modal {
+            position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 9999 !important; align-items: center; justify-content: center;
         }
-        .photo-zoom { animation: kenBurns 5s linear forwards; will-change: transform; }
 
-        /* Final Screen Fold */
-        .fold-away {
-            transform-origin: top;
-            transform: perspective(1200px) rotateX(90deg);
+        /* Final Screen Slide Animation */
+        .slide-away {
             opacity: 0 !important;
-            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 1s ease-in;
+            transform: translate3d(0, 100vh, 0);
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.6s ease-in;
             pointer-events: none;
+            will-change: transform, opacity;
         }
         
         #particle-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
@@ -120,7 +125,8 @@
 </head>
 <body>
 
-    <div id="app-wrapper" class="w-full max-w-md mx-auto relative bg-[#141414] h-[100dvh] overflow-y-auto overflow-x-hidden shadow-[0_0_50px_rgba(138,43,226,0.15)] border-x border-white/5" style="transform: translateZ(0);">
+    <!-- Removed transform to prevent modal positioning glitches -->
+    <div id="app-wrapper" class="w-full max-w-md mx-auto relative bg-[#141414] h-[100dvh] overflow-y-auto overflow-x-hidden shadow-[0_0_50px_rgba(138,43,226,0.15)] border-x border-white/5">
         
         <!-- 1. INTRO TUDUM -->
         <div id="intro-screen" class="app-screen" style="display: flex; opacity: 1; position: absolute; z-index: 9999; background: #000;">
@@ -145,19 +151,6 @@
             <button onclick="safeOpenDevModal()" class="absolute bottom-10 text-xs text-gray-600 hover:text-purple-400 transition-colors z-20">Dev: Force Unlock</button>
         </div>
 
-        <!-- DEV PASSWORD MODAL -->
-        <div id="dev-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/80 backdrop-blur-sm opacity-0 transition-opacity absolute">
-            <div class="bg-gray-900 border border-purple-500/50 p-6 rounded-xl w-80 text-center shadow-[0_0_20px_rgba(138,43,226,0.3)] mx-4">
-                <h3 class="text-white mb-4 font-semibold">Developer Override</h3>
-                <input type="password" id="dev-password" placeholder="Enter Password" class="w-full bg-black border border-gray-700 rounded p-2 text-white mb-2 focus:outline-none focus:border-purple-500 text-center">
-                <p id="dev-error" class="text-red-500 text-xs h-4 mb-4"></p>
-                <div class="flex gap-3">
-                    <button onclick="safeCloseDevModal()" class="flex-1 bg-gray-800 text-white py-2 rounded">Cancel</button>
-                    <button onclick="checkDevPassword()" class="flex-1 bg-purple-600 text-white py-2 rounded font-bold">Unlock</button>
-                </div>
-            </div>
-        </div>
-
         <!-- 3. INTERMEDIATE MESSAGE -->
         <div id="intro-message-screen" class="app-screen relative items-center justify-center bg-gradient-to-br from-[#1a0b2e] via-black to-[#2d112b] overflow-hidden p-6 md:p-12">
             <div class="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center justify-center gap-8 text-center">
@@ -168,6 +161,7 @@
                     This is our show of us which is so special for me. I loved making it, and it's my absolute favorite one.
                 </p>
                 <div class="w-48 h-64 relative mb-6">
+                    <!-- Updated Fallback Logic -->
                     <img src="assets/images/v-sticker.png" alt="V Love Sign" class="w-full h-full object-contain filter brightness-110" onerror="this.onerror=null; this.src='https://placehold.co/200x300/2d112b/fff?text=V+Sticker'">
                 </div>
                 <button onclick="startAdventures()" class="bg-gradient-to-r from-pink-600 to-purple-600 text-white py-4 px-8 rounded-full font-bold text-lg transition-all shadow-[0_0_25px_rgba(255,105,180,0.6)] active:scale-95 relative z-[100]">
@@ -190,10 +184,12 @@
                 <i class="fa-solid fa-heart text-white"></i>
             </nav>
 
-            <div class="relative w-full h-[75vh] md:h-[85vh] step-container">
-                <img src="assets/images/hero-bg.jpg.jpeg" class="absolute inset-0 w-full h-full object-cover opacity-60" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=3793&auto=format&fit=crop'">
+            <!-- Zoomed out 20% Hero Container -->
+            <div class="relative w-full h-[75vh] md:h-[85vh] step-container bg-black flex items-center justify-center">
+                <!-- Scale-80 achieves the exactly 20% zoom out you requested. object-contain ensures no cropping -->
+                <img src="assets/images/hero-bg.jpg.jpeg" class="absolute w-full h-full object-contain scale-[0.8] opacity-80" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=1200&auto=format&fit=crop'">
                 <div class="absolute inset-0 hero-vignette"></div>
-                <div class="absolute bottom-[8%] left-4 right-4 max-w-2xl flex flex-col justify-end pointer-events-none">
+                <div class="absolute bottom-[8%] left-4 right-4 max-w-2xl flex flex-col justify-end pointer-events-none z-10">
                     <h2 class="font-['Cinzel'] text-4xl md:text-7xl font-bold mb-2 text-white leading-none">
                         ISHHUU:<br><span class="text-purple-400 text-3xl md:text-6xl">SEASON 17</span>
                     </h2>
@@ -300,61 +296,6 @@
             </div>
         </div>
 
-        <!-- MODALS SECTION -->
-        
-        <!-- PHOTO MODAL (Episodes) -->
-        <div id="photo-modal" class="fixed inset-0 z-[100] hidden flex-col bg-black opacity-0 transition-opacity duration-500 overflow-hidden absolute">
-            <button onclick="safeCloseMedia('photo')" class="absolute top-6 right-6 p-4 text-white/80 text-3xl z-[110]"><i class="fa-solid fa-xmark"></i></button>
-            <div class="relative flex-1 flex flex-col items-center justify-center bg-black w-full h-full">
-                <img id="episode-photo" src="" class="w-full h-full object-cover opacity-80" alt="Memory" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=1200'">
-                <div class="absolute bottom-10 left-6 right-6 text-center z-10 p-4 bg-gradient-to-t from-black/80 to-transparent rounded-xl">
-                    <h2 id="photo-title" class="text-2xl font-['Cinzel'] text-purple-400 font-bold mb-2">Our Memory</h2>
-                    <p class="text-gray-200 text-sm italic">Every moment with you is perfectly captured...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- VIDEO MODAL (Dream Cuts) -->
-        <div id="video-modal" class="fixed inset-0 z-[100] hidden flex-col bg-black opacity-0 transition-opacity duration-500 absolute">
-            <button onclick="safeCloseMedia('video')" class="absolute top-6 right-6 p-4 text-white/80 text-3xl z-[110]"><i class="fa-solid fa-xmark"></i></button>
-            <div class="relative flex-1 flex items-center justify-center bg-black w-full h-full">
-                <video id="kdrama-player" class="w-full max-h-[80vh] object-contain" playsinline onerror="this.onerror=null; this.src='https://cdn.pixabay.com/video/2021/08/04/83863-584705359_tiny.mp4'; this.play();">
-                    <source id="video-source" src="" type="video/mp4">
-                </video>
-            </div>
-        </div>
-
-        <!-- INCOMING CALL MODAL -->
-        <div id="incoming-call-modal" class="fixed inset-0 z-[200] hidden flex-col justify-between opacity-0 transition-opacity duration-300 overflow-hidden bg-black absolute">
-            <div class="absolute inset-0 bg-cover bg-center opacity-30" style="background-image: url('assets/images/call-bg.jpg');"></div>
-            <div class="relative z-10 flex flex-col items-center pt-24 px-6 text-center">
-                <div class="w-28 h-28 rounded-full overflow-hidden mb-4 bg-purple-900 flex items-center justify-center border-2 border-white/20">
-                    <img src="assets/images/caller-id.jpg" alt="A" class="w-full h-full object-cover" onerror="this.onerror=null; this.style.display='none'; document.getElementById('caller-fallback').style.display='block';">
-                    <span id="caller-fallback" style="display:none;" class="text-4xl font-bold text-white">A</span>
-                </div>
-                <h2 class="text-3xl font-light text-white mb-2">Mr Adiii 💜</h2>
-                <p id="call-status" class="text-base text-gray-300 font-light">Incoming call...</p>
-            </div>
-            <div class="relative z-10 pb-20 px-12 w-full max-w-md mx-auto">
-                <div id="call-controls-ringing" class="flex justify-between items-center w-full px-4">
-                    <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="handleCall(false)">
-                        <div class="w-16 h-16 rounded-full bg-[#ff3b30] flex items-center justify-center"><i class="fa-solid fa-phone-slash text-white text-2xl"></i></div>
-                    </div>
-                    <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="handleCall(true)">
-                        <div class="w-16 h-16 rounded-full bg-[#34c759] flex items-center justify-center animate-bounce"><i class="fa-solid fa-phone text-white text-2xl"></i></div>
-                    </div>
-                </div>
-                <div id="call-controls-active" class="hidden flex-col items-center justify-center w-full">
-                    <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="endCallManually()">
-                        <div class="w-16 h-16 rounded-full bg-[#ff3b30] flex items-center justify-center"><i class="fa-solid fa-phone-slash text-white text-2xl"></i></div>
-                    </div>
-                </div>
-            </div>
-            <audio id="call-audio">
-                <source src="assets/audio/voice-note.mp3" type="audio/mpeg" onerror="this.onerror=null; this.src='https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3';">
-            </audio>
-        </div>
-
         <!-- FINAL SCREEN -->
         <div id="final-screen" class="app-screen fixed inset-0 z-[300] bg-[#05010a] items-center justify-center overflow-hidden flex-col absolute">
             <div class="relative z-10 text-center px-6 text-white w-full max-w-2xl mx-auto">
@@ -366,10 +307,82 @@
         </div>
     </div> <!-- END APP WRAPPER -->
 
+    <!-- ================= MODALS MOVED OUTSIDE WRAPPER FOR PERFECT FIXED POSITIONING ================= -->
+
+    <!-- DEV PASSWORD MODAL -->
+    <div id="dev-modal" class="fixed-modal hidden bg-black/80 backdrop-blur-sm opacity-0 transition-opacity">
+        <div class="bg-gray-900 border border-purple-500/50 p-6 rounded-xl w-80 text-center shadow-[0_0_20px_rgba(138,43,226,0.3)] mx-4">
+            <h3 class="text-white mb-4 font-semibold">Developer Override</h3>
+            <input type="password" id="dev-password" placeholder="Enter Password" class="w-full bg-black border border-gray-700 rounded p-2 text-white mb-2 focus:outline-none focus:border-purple-500 text-center">
+            <p id="dev-error" class="text-red-500 text-xs h-4 mb-4"></p>
+            <div class="flex gap-3">
+                <button onclick="safeCloseDevModal()" class="flex-1 bg-gray-800 text-white py-2 rounded">Cancel</button>
+                <button onclick="checkDevPassword()" class="flex-1 bg-purple-600 text-white py-2 rounded font-bold">Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PHOTO MODAL (Episodes - 10s Timer, No Zoom) -->
+    <div id="photo-modal" class="fixed-modal hidden bg-black opacity-0 transition-opacity duration-500">
+        <button onclick="safeCloseMedia('photo')" class="absolute top-6 right-6 p-4 text-white/80 text-3xl z-[110]"><i class="fa-solid fa-xmark"></i></button>
+        <div class="relative flex flex-col items-center justify-center bg-black w-full h-full max-w-md mx-auto">
+            <!-- Animation removed per instructions -->
+            <img id="episode-photo" src="" class="w-full h-full object-contain" alt="Memory" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?q=80&w=1200'">
+            <div class="absolute bottom-10 left-6 right-6 text-center z-10 p-4 bg-gradient-to-t from-black/80 to-transparent rounded-xl">
+                <h2 id="photo-title" class="text-2xl font-['Cinzel'] text-purple-400 font-bold mb-2">Our Memory</h2>
+                <p class="text-gray-200 text-sm italic">Every moment with you is perfectly captured...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIDEO MODAL (Dream Cuts) -->
+    <div id="video-modal" class="fixed-modal hidden bg-black opacity-0 transition-opacity duration-500">
+        <button onclick="safeCloseMedia('video')" class="absolute top-6 right-6 p-4 text-white/80 text-3xl z-[110]"><i class="fa-solid fa-xmark"></i></button>
+        <div class="relative flex items-center justify-center bg-black w-full h-full max-w-md mx-auto">
+            <video id="kdrama-player" class="w-full max-h-[80vh] object-contain" playsinline onerror="this.onerror=null; this.src='https://cdn.pixabay.com/video/2021/08/04/83863-584705359_tiny.mp4'; this.play();">
+                <source id="video-source" src="" type="video/mp4">
+            </video>
+        </div>
+    </div>
+
+    <!-- INCOMING CALL MODAL -->
+    <div id="incoming-call-modal" class="fixed-modal hidden flex-col justify-between opacity-0 transition-opacity duration-300 bg-black">
+        <div class="absolute inset-0 bg-cover bg-center opacity-30" style="background-image: url('assets/images/call-bg.jpg');"></div>
+        <div class="relative z-10 flex flex-col items-center pt-24 px-6 text-center w-full">
+            <div class="w-28 h-28 rounded-full overflow-hidden mb-4 bg-purple-900 flex items-center justify-center border-2 border-white/20">
+                <img src="assets/images/caller-id.jpg" alt="A" class="w-full h-full object-cover" onerror="this.onerror=null; this.style.display='none'; document.getElementById('caller-fallback').style.display='block';">
+                <span id="caller-fallback" style="display:none;" class="text-4xl font-bold text-white">A</span>
+            </div>
+            <h2 class="text-3xl font-light text-white mb-2">Mr Adiii 💜</h2>
+            <p id="call-status" class="text-base text-gray-300 font-light">Incoming call...</p>
+        </div>
+        <div class="relative z-10 pb-20 px-12 w-full max-w-md mx-auto">
+            <div id="call-controls-ringing" class="flex justify-between items-center w-full px-4">
+                <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="handleCall(false)">
+                    <div class="w-16 h-16 rounded-full bg-[#ff3b30] flex items-center justify-center"><i class="fa-solid fa-phone-slash text-white text-2xl"></i></div>
+                </div>
+                <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="handleCall(true)">
+                    <div class="w-16 h-16 rounded-full bg-[#34c759] flex items-center justify-center animate-bounce"><i class="fa-solid fa-phone text-white text-2xl"></i></div>
+                </div>
+            </div>
+            <div id="call-controls-active" class="hidden flex-col items-center justify-center w-full">
+                <div class="flex flex-col items-center gap-2 cursor-pointer" onclick="endCallManually()">
+                    <div class="w-16 h-16 rounded-full bg-[#ff3b30] flex items-center justify-center"><i class="fa-solid fa-phone-slash text-white text-2xl"></i></div>
+                </div>
+            </div>
+        </div>
+        <audio id="call-audio">
+            <source src="assets/audio/voice-note.mp3" type="audio/mpeg" onerror="this.onerror=null; this.src='https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3';">
+        </audio>
+    </div>
+
     <script>
         // ---------------- UTILITY & NULL CHECKS ----------------
         function el(id) { return document.getElementById(id); }
         
+        function lockScroll() { el('app-wrapper').style.overflow = 'hidden'; }
+        function unlockScroll() { el('app-wrapper').style.overflow = 'auto'; }
+
         function switchScreen(targetId) {
             try {
                 const screens = ['intro-screen', 'lock-screen', 'intro-message-screen', 'main-screen', 'final-screen'];
@@ -392,7 +405,6 @@
                 // Show target screen smoothly
                 if (target) {
                     target.style.display = 'flex';
-                    // Force reflow to ensure transition happens
                     void target.offsetWidth;
                     target.style.opacity = '1';
                     target.classList.add('active');
@@ -447,10 +459,12 @@
 
         // ---------------- DEV MODAL ----------------
         function safeOpenDevModal() {
+            lockScroll();
             const m = el('dev-modal');
             if(m) { m.classList.remove('hidden'); m.classList.add('flex'); setTimeout(()=>m.classList.remove('opacity-0'), 10); }
         }
         function safeCloseDevModal() {
+            unlockScroll();
             const m = el('dev-modal');
             if(m) {
                 m.classList.add('opacity-0');
@@ -477,12 +491,13 @@
                 c.className = 'fixed inset-0 pointer-events-none z-[8000] overflow-hidden';
                 document.body.appendChild(c);
 
-                for (let i = 0; i < 45; i++) {
+                // Reduced heart count to 30 for smoother optimization
+                for (let i = 0; i < 30; i++) {
                     const h = document.createElement('i');
                     h.className = 'fa-solid fa-heart flying-heart drop-shadow-xl';
                     h.style.left = `${Math.random() * 100}vw`;
                     h.style.fontSize = `${Math.random() * 4 + 3}rem`;
-                    h.style.setProperty('--duration', `${Math.random() * 2.5 + 5.0}s`); // 5-7.5s
+                    h.style.setProperty('--duration', `${Math.random() * 2.5 + 5.0}s`); 
                     h.style.setProperty('--end-scale', '5');
                     h.style.setProperty('--end-rotate', `${(Math.random()-0.5)*60}deg`);
                     h.style.animationDelay = `${Math.random() * 1.5}s`;
@@ -580,21 +595,21 @@
 
         function safeOpenMediaModal(type, mediaId, title = "Our Memory", advanceTutorial = false) {
             try {
+                lockScroll();
                 advanceOnClose = advanceTutorial;
                 if (type === 'photo') {
                     const pModal = el('photo-modal');
                     const pImg = el('episode-photo');
                     if (pModal && pImg) {
                         pImg.src = `assets/videos/${mediaId}.jpeg`;
-                        pImg.classList.remove('photo-zoom');
                         if (el('photo-title')) el('photo-title').innerText = title;
                         pModal.classList.remove('hidden'); pModal.classList.add('flex');
-                        void pImg.offsetWidth;
-                        pImg.classList.add('photo-zoom');
+                        
                         setTimeout(() => pModal.classList.remove('opacity-0'), 50);
                         
+                        // Updated to 10 seconds exactly per request
                         if (photoTimer) clearTimeout(photoTimer);
-                        photoTimer = setTimeout(() => safeCloseMedia('photo'), 5000);
+                        photoTimer = setTimeout(() => safeCloseMedia('photo'), 10000);
                     }
                 } else if (type === 'video') {
                     const vModal = el('video-modal');
@@ -609,7 +624,7 @@
                         vPlayer.onended = () => safeCloseMedia('video');
                     }
                 }
-            } catch (e) { console.error("Modal open error:", e); }
+            } catch (e) { console.error("Modal open error:", e); unlockScroll(); }
         }
 
         function safeCloseMedia(type) {
@@ -621,11 +636,11 @@
                     if (type === 'video' && el('kdrama-player')) el('kdrama-player').pause();
                     setTimeout(() => {
                         modal.classList.remove('flex'); modal.classList.add('hidden');
-                        if (type === 'photo' && el('episode-photo')) el('episode-photo').classList.remove('photo-zoom');
+                        unlockScroll();
                         if (advanceOnClose) { advanceOnClose = false; activateStep(currentStep + 1); }
                     }, 500);
                 }
-            } catch (e) { console.error("Modal close error:", e); }
+            } catch (e) { console.error("Modal close error:", e); unlockScroll(); }
         }
 
         // ---------------- CALL MODAL ----------------
@@ -636,7 +651,11 @@
                 if(el('walkthrough-overlay')) el('walkthrough-overlay').style.display = 'none';
                 document.querySelectorAll('.walkthrough-highlight').forEach(e => e.classList.remove('walkthrough-highlight'));
                 const cm = el('incoming-call-modal');
-                if (cm) { cm.classList.remove('hidden'); cm.classList.add('flex'); setTimeout(() => cm.classList.remove('opacity-0'), 50); }
+                if (cm) { 
+                    lockScroll();
+                    cm.classList.remove('hidden'); cm.classList.add('flex'); 
+                    setTimeout(() => cm.classList.remove('opacity-0'), 50); 
+                }
             } catch (e) { console.error("Call trigger error:", e); }
         }
 
@@ -645,7 +664,7 @@
                 const stat = el('call-status');
                 if (!accepted) {
                     if (stat) stat.innerText = "Call Ended";
-                    setTimeout(() => { switchScreen('final-screen'); if(el('incoming-call-modal')) el('incoming-call-modal').style.display='none'; }, 800);
+                    setTimeout(() => { switchScreen('final-screen'); unlockScroll(); if(el('incoming-call-modal')) el('incoming-call-modal').style.display='none'; }, 800);
                     return;
                 }
                 if (el('call-controls-ringing')) el('call-controls-ringing').classList.replace('flex', 'hidden');
@@ -670,7 +689,7 @@
                 if (callInt) clearInterval(callInt);
                 if (el('call-audio')) el('call-audio').pause();
                 if (el('call-status')) el('call-status').innerText = "Call Ended";
-                setTimeout(() => { switchScreen('final-screen'); if(el('incoming-call-modal')) el('incoming-call-modal').style.display='none'; }, 800);
+                setTimeout(() => { switchScreen('final-screen'); unlockScroll(); if(el('incoming-call-modal')) el('incoming-call-modal').style.display='none'; }, 800);
             } catch (e) { console.error("End call error:", e); }
         }
 
@@ -679,14 +698,26 @@
             try {
                 const fs = el('final-screen');
                 if (fs) {
-                    fs.classList.add('fold-away');
+                    // Optimized slide-away transition to prevent lag
+                    fs.classList.add('slide-away');
                     setTimeout(() => {
                         fs.style.display = 'none';
-                        fs.classList.remove('active', 'fold-away');
+                        fs.classList.remove('active', 'slide-away');
+                        
                         const ms = el('main-screen');
-                        if (ms) { ms.style.display = 'flex'; setTimeout(() => ms.style.opacity = '1', 50); }
-                        window.scrollTo(0, 0);
-                    }, 1200);
+                        if (ms) { 
+                            ms.style.display = 'flex'; 
+                            setTimeout(() => ms.style.opacity = '1', 50); 
+                        }
+                        
+                        // Force free-roam and reset position securely
+                        const overlay = el('walkthrough-overlay');
+                        if(overlay) overlay.style.display = 'none';
+                        document.querySelectorAll('.walkthrough-highlight').forEach(e => e.classList.remove('walkthrough-highlight'));
+                        document.querySelectorAll('.step-container').forEach(e => e.style.zIndex = '');
+                        el('app-wrapper').scrollTo({ top: 0, behavior: 'instant' });
+                        
+                    }, 800);
                 }
             } catch (e) { console.error("View again error:", e); }
         }
