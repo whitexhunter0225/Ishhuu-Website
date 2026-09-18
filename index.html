@@ -650,9 +650,16 @@
             try {
                 if(el('walkthrough-overlay')) el('walkthrough-overlay').style.display = 'none';
                 document.querySelectorAll('.walkthrough-highlight').forEach(e => e.classList.remove('walkthrough-highlight'));
+                
+                // EXACT FIX: Reset the call UI states back to "ringing" for the second time it is opened
+                if (el('call-controls-ringing')) el('call-controls-ringing').classList.replace('hidden', 'flex');
+                if (el('call-controls-active')) el('call-controls-active').classList.replace('flex', 'hidden');
+                if (el('call-status')) el('call-status').innerText = 'Incoming call...';
+
                 const cm = el('incoming-call-modal');
                 if (cm) { 
                     lockScroll();
+                    cm.style.display = ''; // EXACT FIX: Removes the inline display override that broke the button
                     cm.classList.remove('hidden'); cm.classList.add('flex'); 
                     setTimeout(() => cm.classList.remove('opacity-0'), 50); 
                 }
@@ -664,7 +671,15 @@
                 const stat = el('call-status');
                 if (!accepted) {
                     if (stat) stat.innerText = "Call Ended";
-                    setTimeout(() => { switchScreen('final-screen'); unlockScroll(); if(el('incoming-call-modal')) el('incoming-call-modal').style.display='none'; }, 800);
+                    setTimeout(() => { 
+                        switchScreen('final-screen'); 
+                        unlockScroll(); 
+                        const cm = el('incoming-call-modal');
+                        if (cm) {
+                            // Safely close the modal without inline styles
+                            cm.classList.remove('flex'); cm.classList.add('hidden'); cm.classList.add('opacity-0'); cm.style.display = '';
+                        }
+                    }, 800);
                     return;
                 }
                 if (el('call-controls-ringing')) el('call-controls-ringing').classList.replace('flex', 'hidden');
@@ -689,7 +704,15 @@
                 if (callInt) clearInterval(callInt);
                 if (el('call-audio')) el('call-audio').pause();
                 if (el('call-status')) el('call-status').innerText = "Call Ended";
-                setTimeout(() => { switchScreen('final-screen'); unlockScroll(); if(el('incoming-call-modal')) el('incoming-call-modal').style.display='none'; }, 800);
+                setTimeout(() => { 
+                    switchScreen('final-screen'); 
+                    unlockScroll(); 
+                    const cm = el('incoming-call-modal');
+                    if(cm) {
+                         // Safely close the modal without inline styles
+                         cm.classList.remove('flex'); cm.classList.add('hidden'); cm.classList.add('opacity-0'); cm.style.display = '';
+                    }
+                }, 800);
             } catch (e) { console.error("End call error:", e); }
         }
 
